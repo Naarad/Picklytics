@@ -106,6 +106,13 @@
     transition: all 0.15s;
   }
   .pick.active { background: var(--accent); color: #0b1110; border-color: var(--accent); }
+  .pick { font-size: 13px; padding: 12px 8px; }
+  .mode-hint {
+    margin-top: 10px; padding: 9px 11px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 10px;
+    color: var(--muted); font-size: 11.5px; line-height: 1.45;
+  }
+  .mode-hint b { color: var(--accent); font-weight: 700; }
 
   .start-btn {
     width: 100%; padding: 17px; border-radius: 14px;
@@ -340,11 +347,13 @@
     </div>
 
     <div class="pick-card">
-      <div class="label">Match Type</div>
+      <div class="label">Mode</div>
       <div class="pick-row">
+        <button class="pick" data-players="1">Solo · 1</button>
         <button class="pick" data-players="2">Singles · 2</button>
         <button class="pick active" data-players="4">Doubles · 4</button>
       </div>
+      <div id="modeHint" class="mode-hint hidden"></div>
     </div>
 
     <button class="start-btn" id="startBtn">Start Match</button>
@@ -474,8 +483,22 @@ document.querySelectorAll('.pick').forEach(btn => {
     document.querySelectorAll('.pick').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.maxPlayers = +btn.dataset.players;
+    updateModeHint();
   });
 });
+
+function updateModeHint() {
+  const hint = $('modeHint');
+  if (state.maxPlayers === 1) {
+    hint.classList.remove('hidden');
+    hint.innerHTML = '<b>Solo mode.</b> Best when you\'re the only person in frame — wall drills, shadow swings, serve practice. We lock onto the largest person and ignore passers-by.';
+  } else if (state.maxPlayers === 2) {
+    hint.classList.remove('hidden');
+    hint.innerHTML = '<b>Singles.</b> Two players, head-to-head analysis.';
+  } else {
+    hint.classList.add('hidden');
+  }
+}
 
 $('startBtn').addEventListener('click', startMatch);
 $('endBtn').addEventListener('click', endMatch);
@@ -644,6 +667,11 @@ function processPoses(poses, now) {
     .filter(d => d.bbox);
   detections.sort((a, b) => (b.bbox.w * b.bbox.h) - (a.bbox.w * a.bbox.h));
 
+  // SOLO: keep only the largest person to avoid passerby contamination.
+  if (state.maxPlayers === 1 && detections.length > 1) {
+    detections.length = 1;
+  }
+
   const claimed = new Set();
   for (const det of detections) {
     let track = state.tracks.find(t => t.trackerId != null && t.trackerId === det.trackerId);
@@ -688,8 +716,9 @@ function makeTrack(bbox, now) {
     lastWristL: null, lastWristR: null,
     lastSwingL: 0, lastSwingR: 0,
     lastFrameTime: now,
-    bestShots: [],   // top 3 swings: {speed, t, snapshot}
+    bestShots: [],   // top 5 swings: {speed, t, snapshot}
     misses: [],      // first 5 miss snapshots: {t, snapshot}
+    allSwingSpeeds: [], // for consistency metric
   }) - 1];
 }
 
@@ -753,17 +782,18 @@ function checkSwing(track, wrist, side, dt, now) {
       if (cooldownPassed) {
         track.stats.swings++;
         track[cooldown] = now;
+        track.allSwingSpeeds.push(speed);
       }
       if (speed > track.stats.peakSwingSpeed) track.stats.peakSwingSpeed = speed;
-      // top-3 for this player, top-8 globally
-      const playerMin = track.bestShots.length < 3 ? 0 : track.bestShots[track.bestShots.length - 1].speed;
+      // top-5 for this player, top-8 globally
+      const playerMin = track.bestShots.length < 5 ? 0 : track.bestShots[track.bestShots.length - 1].speed;
       const globalMin = state.events.bestShots.length < 8 ? 0 : state.events.bestShots[state.events.bestShots.length - 1].speed;
       if (cooldownPassed && (speed > playerMin || speed > globalMin)) {
         const snap = grabSnapshot(track.bbox);
         const entry = { trackId: track.id, speed, t: now, snapshot: snap };
         track.bestShots.push(entry);
         track.bestShots.sort((a, b) => b.speed - a.speed);
-        if (track.bestShots.length > 3) track.bestShots.length = 3;
+        if (track.bestShots.length > 5) track.bestShots.length = 5;
         state.events.bestShots.push(entry);
         state.events.bestShots.sort((a, b) => b.speed - a.speed);
         if (state.events.bestShots.length > 8) state.events.bestShots.length = 8;
@@ -918,16 +948,22 @@ function scoreTracks() {
 /* ---------- Results screen ---------- */
 function showResults() {
   $('resultsScreen').classList.remove('hidden');
-  const durMs = state.endTime - state.startTime;
-  const min = Math.floor(durMs/60000), sec = Math.floor((durMs%60000)/1000);
-  $('recapSub').textContent =
-    `${min}m ${sec}s match · ${state.tracks.length} player${state.tracks.length===1?'':'s'} tracked`;
 
   // Disable video button if no recording
   if (!state.videoBlob || state.videoBlob.size === 0) {
     $('dlVideo').disabled = true;
     $('dlVideo').title = 'Video recording not supported on this browser';
   }
+
+  // Solo mode gets a different layout
+  if (state.maxPlayers === 1) {
+    return showSoloResults();
+  }
+
+  const durMs = state.endTime - state.startTime;
+  const min = Math.floor(durMs/60000), sec = Math.floor((durMs%60000)/1000);
+  $('recapSub').textContent =
+    `${min}m ${sec}s match · ${state.tracks.length} player${state.tracks.length===1?'':'s'} tracked`;
 
   const scored = scoreTracks();
 
@@ -1146,20 +1182,22 @@ function buildGeneralReportHtml() {
   const scored = scoreTracks();
   const mvp = scored[0]?.t;
   const best = state.events.bestShots[0];
+  const isSolo = state.maxPlayers === 1;
+  const cons = isSolo && mvp ? consistencyScore(mvp.allSwingSpeeds) : null;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Picklytics Match Report</title>${reportStyles()}</head>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${isSolo ? 'Picklytics Personal Recap' : 'Picklytics Match Report'}</title>${reportStyles()}</head>
   <body><div class="wrap">
     ${reportHeader()}
-    <h1>Match Recap</h1>
-    <div class="sub">${min}m ${sec}s · ${state.tracks.length} player${state.tracks.length===1?'':'s'} tracked</div>
+    <h1>${isSolo ? 'Personal Recap' : 'Match Recap'}</h1>
+    <div class="sub">${min}m ${sec}s · ${isSolo ? 'solo session' : `${state.tracks.length} player${state.tracks.length===1?'':'s'} tracked`}${cons !== null ? ` · consistency ${cons}/100` : ''}</div>
 
     ${mvp ? `
-    <div class="section-h">Most Valuable Player</div>
+    <div class="section-h">${isSolo ? 'Your Performance' : 'Most Valuable Player'}</div>
     <div class="hero-card">
-      ${mvp.snapshot ? `<img src="${mvp.snapshot}" alt="MVP">` : ''}
+      ${mvp.snapshot ? `<img src="${mvp.snapshot}" alt="${isSolo ? 'You' : 'MVP'}">` : ''}
       <div>
-        <h2 style="color:${mvp.color}">Player ${mvp.id}</h2>
-        <p>${escapeHtml(describeMvp(mvp, scored))}</p>
+        <h2 style="color:${mvp.color}">${isSolo ? escapeHtml(soloHeadline(mvp)) : `Player ${mvp.id}`}</h2>
+        <p>${escapeHtml(isSolo ? `${mvp.stats.swings} swings · peak ${mvp.stats.peakSwingSpeed.toFixed(1)} u/s · ${mvp.stats.totalMovement.toFixed(1)} coverage` : describeMvp(mvp, scored))}</p>
       </div>
     </div>` : ''}
 
@@ -1200,15 +1238,139 @@ function buildGeneralReportHtml() {
       return `<div class="miss"><span style="color:${t?t.color:'#fff'}"><b>Player ${m.trackId}</b> · slow reaction during rally</span><span class="t">${fmtTime(m.t - state.startTime)}</span></div>`;
     }).join('')}` : ''}
 
-    <div class="section-h">Areas of Improvement</div>
+    <div class="section-h">${isSolo ? 'For Your Next Session' : 'Areas of Improvement'}</div>
     ${scored.map(({t}) => `
     <div class="notes" style="margin-bottom:10px">
-      <div style="color:${t.color};font-weight:700;margin-bottom:8px">Player ${t.id}</div>
-      <ul>${improvementNotes(t).map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>
+      <div style="color:${t.color};font-weight:700;margin-bottom:8px">${isSolo ? 'Coaching notes' : `Player ${t.id}`}</div>
+      <ul>${(isSolo ? soloImprovementNotes(t) : improvementNotes(t)).map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>
     </div>`).join('')}
 
     <div class="footer">Generated by Picklytics. Open this file in any browser. Use ⌘P (or Ctrl+P) to save as PDF.</div>
   </div></body></html>`;
+}
+
+/* ============================================================
+   SOLO MODE  ·  personal recap
+   ============================================================ */
+
+function consistencyScore(speeds) {
+  // Returns 0-100: higher = more consistent swing speed.
+  if (!speeds || speeds.length < 3) return 0;
+  const mean = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+  if (mean <= 0) return 0;
+  const variance = speeds.reduce((s, v) => s + (v - mean) ** 2, 0) / speeds.length;
+  const stdev = Math.sqrt(variance);
+  const cv = stdev / mean;            // coefficient of variation, lower = more consistent
+  const score = Math.max(0, Math.min(100, Math.round((1 - Math.min(cv, 1)) * 100)));
+  return score;
+}
+
+function soloHeadline(t) {
+  const s = t.stats;
+  const c = consistencyScore(t.allSwingSpeeds);
+  if (s.swings >= 20 && s.peakSwingSpeed > 5) return 'Big Hitting Session';
+  if (s.swings >= 30 && c >= 70)               return 'Consistency Drill';
+  if (s.totalMovement >= 12 && s.swings < 10)  return 'Hustle Session';
+  if (s.peakSwingSpeed > 6 && s.swings < 12)   return 'Power Practice';
+  if (s.swings >= 15)                          return 'Solid Session';
+  return 'Practice Session';
+}
+
+function soloImprovementNotes(t) {
+  const s = t.stats;
+  const c = consistencyScore(t.allSwingSpeeds);
+  const notes = [];
+  if (s.swings < 6)             notes.push('Short session — aim for 20+ swings next time to build rhythm.');
+  if (s.peakSwingSpeed < 3)     notes.push('Work on swing power — generate from the hip, not just the wrist.');
+  if (s.peakSwingSpeed > 6 && c < 50) notes.push('Strong swings but inconsistent — slow down and groove the same motion.');
+  if (s.totalMovement < 3 && state.maxPlayers === 1) notes.push('Add footwork into your drill — split-step before each shot.');
+  if (s.swings >= 15 && c >= 75) notes.push('Excellent rhythm. Push the speed up gradually while keeping form.');
+  if (c >= 60 && s.swings >= 12) notes.push(`Consistency ${c}/100 — your swing rhythm is in a good groove.`);
+  if (!notes.length)            notes.push('Keep the session going — log a few more sessions this week to see progress.');
+  return notes;
+}
+
+function showSoloResults() {
+  const me = state.tracks[0];
+  const durMs = state.endTime - state.startTime;
+  const min = Math.floor(durMs/60000), sec = Math.floor((durMs%60000)/1000);
+
+  // Header
+  document.querySelector('.results-h1').textContent = 'Your Recap';
+  $('recapSub').textContent = `${min}m ${sec}s session${me ? '' : ' · no player tracked'}`;
+
+  if (!me) {
+    $('mvpCard').innerHTML = `<div class="best-card"><div><h3>No player detected</h3><p>Make sure you were visible to the camera.</p></div></div>`;
+    document.querySelectorAll('.section-title').forEach(el => {
+      const text = el.textContent.trim();
+      if (text === 'Most Valuable Player') el.textContent = 'Performance';
+      if (text === 'Best Shot of the Match') el.style.display = 'none';
+      if (text === 'Players · Tap to download report') el.style.display = 'none';
+      if (text === 'Errors & Misses') el.style.display = 'none';
+    });
+    $('bestShotCard').style.display = 'none';
+    $('playerGrid').style.display = 'none';
+    $('missList').style.display = 'none';
+    return;
+  }
+
+  // Rename section titles
+  document.querySelectorAll('.section-title').forEach(el => {
+    const text = el.textContent.trim();
+    if (text === 'Most Valuable Player')          el.textContent = 'Your Performance';
+    if (text === 'Best Shot of the Match')        el.textContent = 'Your Top Shots';
+    if (text === 'Players · Tap to download report') el.textContent = 'Your Stats';
+    if (text === 'Errors & Misses')               el.style.display = 'none';
+  });
+
+  // Hero card
+  const headline = soloHeadline(me);
+  const cons = consistencyScore(me.allSwingSpeeds);
+  $('mvpCard').innerHTML = `
+    <div class="best-card">
+      <img src="${me.snapshot}" alt="You">
+      <div>
+        <h3 style="color:${me.color}">${escapeHtml(headline)}</h3>
+        <p>${me.stats.swings} swings · peak ${me.stats.peakSwingSpeed.toFixed(1)} u/s · ${me.stats.totalMovement.toFixed(1)} coverage${cons ? ` · ${cons}/100 consistency` : ''}</p>
+      </div>
+    </div>`;
+
+  // Top shots strip — show up to 5 best shots horizontally
+  const shots = me.bestShots.slice(0, 5);
+  if (shots.length) {
+    const stripHtml = `
+      <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch">
+        ${shots.map((s, i) => `
+          <div style="flex-shrink:0;width:140px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden">
+            ${s.snapshot ? `<img src="${s.snapshot}" style="width:100%;height:130px;object-fit:cover;display:block">` : `<div style="width:100%;height:130px;background:var(--panel-2)"></div>`}
+            <div style="padding:9px 10px">
+              <div style="font-size:13px;font-weight:700;color:${me.color}">#${i+1} · ${s.speed.toFixed(2)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">at ${fmtTime(s.t - state.startTime)}</div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+    $('bestShotCard').innerHTML = stripHtml;
+  } else {
+    $('bestShotCard').innerHTML = `<div class="shot-card"><div class="meta"><b>No standout shots yet</b><span style="color:var(--muted)">Make sure your wrists are visible to the camera.</span></div></div>`;
+  }
+
+  // Stats grid (replaces multi-player grid)
+  $('playerGrid').innerHTML = `
+    <div class="pcard"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;font-weight:600">Swings</div><div style="font-size:28px;font-weight:800;margin-top:4px;color:${me.color}">${me.stats.swings}</div></div>
+    <div class="pcard"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;font-weight:600">Peak shot</div><div style="font-size:28px;font-weight:800;margin-top:4px;color:${me.color}">${me.stats.peakSwingSpeed.toFixed(1)}</div></div>
+    <div class="pcard"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;font-weight:600">Movement</div><div style="font-size:28px;font-weight:800;margin-top:4px;color:${me.color}">${me.stats.totalMovement.toFixed(1)}</div></div>
+    <div class="pcard"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;font-weight:600">Consistency</div><div style="font-size:28px;font-weight:800;margin-top:4px;color:${me.color}">${cons}<span style="font-size:14px;color:var(--muted);font-weight:600">/100</span></div></div>
+  `;
+
+  // Hide misses section in solo
+  $('missList').style.display = 'none';
+
+  // Improvement notes (solo-flavored)
+  $('improveList').innerHTML = `
+    <div class="improve">
+      <div class="head" style="color:${me.color}">For your next session</div>
+      ${soloImprovementNotes(me).map(n => `<div class="note">• ${escapeHtml(n)}</div>`).join('')}
+    </div>`;
 }
 
 /* ============================================================
@@ -1223,6 +1385,17 @@ const REEL_MVP_DUR   = 2.0;
 function pickReelHighlights() {
   const result = [];
   const scored = scoreTracks();
+
+  if (state.maxPlayers === 1) {
+    // Solo: top N shots from the single player
+    const me = scored[0]?.t;
+    if (me && me.bestShots.length) {
+      me.bestShots.slice(0, 4).forEach(shot => result.push({ track: me, shot }));
+    }
+    return result;
+  }
+
+  // Match: one shot per player
   for (const { t } of scored) {
     if (t.bestShots && t.bestShots.length > 0) {
       result.push({ track: t, shot: t.bestShots[0] });
@@ -1403,26 +1576,36 @@ async function generateHighlightReel(highlights, progressFn) {
   await drawTitleCard(ctx, W, H, REEL_TITLE_DUR);
   bump(REEL_TITLE_DUR, 'Intro done');
 
+  const isSolo = state.maxPlayers === 1;
+
   // 2. Highlights
   for (let i = 0; i < highlights.length; i++) {
     const hl = highlights[i];
-    progressFn(consumed / totalDur, `Player ${hl.track.id}…`);
+    hl.segIndex = i;
+    hl.segTotal = highlights.length;
+    hl.isSolo = isSolo;
+    const segLabel = isSolo ? `Shot ${i+1}…` : `Player ${hl.track.id}…`;
+    progressFn(consumed / totalDur, segLabel);
     if (useLiveVideo) {
       const ok = await drawVideoSegment(ctx, srcVideo, hl, W, H, REEL_SEG_DUR);
       if (!ok) await drawStillSegment(ctx, hl, snapImgs[i], W, H, REEL_SEG_DUR);
     } else {
       await drawStillSegment(ctx, hl, snapImgs[i], W, H, REEL_SEG_DUR);
     }
-    bump(REEL_SEG_DUR, `Player ${hl.track.id} done`);
+    bump(REEL_SEG_DUR, isSolo ? `Shot ${i+1} done` : `Player ${hl.track.id} done`);
   }
 
-  // 3. MVP card
+  // 3. End card (MVP for match, Personal Best for solo)
   const scored = scoreTracks();
-  const mvp = scored[0]?.t;
-  if (mvp) {
-    progressFn(consumed / totalDur, 'MVP…');
-    const mvpImg = await loadImg(mvp.snapshot);
-    await drawMvpCard(ctx, mvp, mvpImg, W, H, REEL_MVP_DUR);
+  const me = scored[0]?.t;
+  if (me) {
+    progressFn(consumed / totalDur, isSolo ? 'Wrap-up…' : 'MVP…');
+    const meImg = await loadImg(me.snapshot);
+    if (isSolo) {
+      await drawSoloEndCard(ctx, me, meImg, W, H, REEL_MVP_DUR);
+    } else {
+      await drawMvpCard(ctx, me, meImg, W, H, REEL_MVP_DUR);
+    }
     bump(REEL_MVP_DUR, 'Done');
   }
 
@@ -1506,7 +1689,7 @@ function drawShotOverlay(ctx, hl, t, W, H) {
   const alpha = Math.min(fadeIn, fadeOut);
   ctx.globalAlpha = alpha;
 
-  // Player chip
+  // Chip
   ctx.fillStyle = hl.track.color;
   roundRect(ctx, 36, 70, 110, 64, 18);
   ctx.fill();
@@ -1514,17 +1697,21 @@ function drawShotOverlay(ctx, hl, t, W, H) {
   ctx.font = 'bold 36px -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`P${hl.track.id}`, 91, 102);
+  ctx.fillText(hl.isSolo ? `#${(hl.segIndex||0)+1}` : `P${hl.track.id}`, 91, 102);
 
-  // Player title + sub
+  // Title + sub
   ctx.fillStyle = 'white';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.font = 'bold 44px -apple-system, sans-serif';
-  ctx.fillText(`Player ${hl.track.id}`, 170, 102);
+  const title = hl.isSolo ? `Shot ${(hl.segIndex||0)+1}` : `Player ${hl.track.id}`;
+  ctx.fillText(title, 170, 102);
   ctx.fillStyle = 'rgba(255,255,255,0.78)';
   ctx.font = '600 26px -apple-system, sans-serif';
-  ctx.fillText(`Best shot · ${hl.shot.speed.toFixed(2)} u/s`, 170, 136);
+  const subline = hl.isSolo
+    ? `${hl.shot.speed.toFixed(2)} u/s · personal best`
+    : `Best shot · ${hl.shot.speed.toFixed(2)} u/s`;
+  ctx.fillText(subline, 170, 136);
 
   // Bottom timestamp + watermark
   ctx.textAlign = 'center';
@@ -1726,6 +1913,80 @@ async function drawMvpCard(ctx, mvp, img, W, H, durationSec) {
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.font = '600 22px -apple-system, sans-serif';
       ctx.fillText('Get your own match recap', W/2, H - 130);
+      ctx.fillStyle = '#d8ff3a';
+      ctx.font = 'bold 24px -apple-system, sans-serif';
+      ctx.fillText('picklytics.onrender.com', W/2, H - 96);
+
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(frame);
+    }
+    frame();
+  });
+}
+
+async function drawSoloEndCard(ctx, me, img, W, H, durationSec) {
+  const startMs = performance.now();
+  const cons = consistencyScore(me.allSwingSpeeds);
+  const headline = soloHeadline(me);
+  return new Promise(res => {
+    function frame() {
+      const elapsed = (performance.now() - startMs) / 1000;
+      const t = elapsed / durationSec;
+      if (t >= 1) { res(); return; }
+
+      drawDarkenedBg(ctx, W, H, me.color);
+      const fade = Math.min(1, t * 3) * Math.min(1, (1 - t) * 3 + 0.5);
+      ctx.globalAlpha = fade;
+
+      // Snapshot circle
+      const cx = W/2, cy = H/2 - 110;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, 170, 0, Math.PI * 2); ctx.clip();
+      if (img && img.naturalWidth) {
+        const s = Math.max(340 / img.naturalWidth, 340 / img.naturalHeight) * 1.05;
+        const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
+        ctx.drawImage(img, cx - dw/2, cy - dh/2, dw, dh);
+      } else {
+        ctx.fillStyle = '#1a2424'; ctx.fillRect(cx-170, cy-170, 340, 340);
+      }
+      ctx.restore();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = me.color;
+      ctx.beginPath(); ctx.arc(cx, cy, 170, 0, Math.PI * 2); ctx.stroke();
+
+      // Headline banner
+      ctx.fillStyle = me.color;
+      const bannerW = 460;
+      roundRect(ctx, W/2 - bannerW/2, cy + 200, bannerW, 60, 30);
+      ctx.fill();
+      ctx.fillStyle = '#0b1110';
+      ctx.font = 'bold 28px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(headline.toUpperCase(), W/2, cy + 230);
+
+      // Stats grid (3 numbers)
+      const gy = cy + 305;
+      const cols = [
+        { v: String(me.stats.swings), l: 'SWINGS' },
+        { v: me.stats.peakSwingSpeed.toFixed(1), l: 'PEAK' },
+        { v: String(cons), l: 'CONSISTENCY' },
+      ];
+      const colW = W / cols.length;
+      cols.forEach((c, i) => {
+        const x = colW * i + colW / 2;
+        ctx.fillStyle = 'white';
+        ctx.font = '800 56px -apple-system, sans-serif';
+        ctx.fillText(c.v, x, gy);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '700 18px -apple-system, sans-serif';
+        ctx.fillText(c.l, x, gy + 38);
+      });
+
+      // CTA
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = '600 22px -apple-system, sans-serif';
+      ctx.fillText('Track every session', W/2, H - 130);
       ctx.fillStyle = '#d8ff3a';
       ctx.font = 'bold 24px -apple-system, sans-serif';
       ctx.fillText('picklytics.onrender.com', W/2, H - 96);
