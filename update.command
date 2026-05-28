@@ -17,6 +17,12 @@ if [ ! -d .git ]; then
   exit 1
 fi
 
+# Clean stale lock files (created when commits originate from another process)
+rm -f .git/HEAD.lock .git/index.lock .git/config.lock .git/objects/maintenance.lock 2>/dev/null
+find .git -name "tmp_obj_*" -type f -delete 2>/dev/null
+echo "Cleared stale git locks."
+echo ""
+
 # Stage any pending changes (the file may already be committed)
 git add -A
 
