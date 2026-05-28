@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Picklytics</title>
+<style>
+  :root {
+    --bg: #0b1110;
+    --panel: #131b1a;
+    --panel-2: #1a2424;
+    --line: #25342f;
+    --text: #e8f1ee;
+    --muted: #93a39d;
+    --accent: #d8ff3a;       /* pickleball yellow-green */
+    --danger: #ff6a6a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  button { font: inherit; cursor: pointer; }
+
+  .screen { position: fixed; inset: 0; display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .hidden { display: none !important; }
+
+  /* ---------- Setup screen ---------- */
+  #setupScreen { justify-content: center; align-items: center; padding: 24px; text-align: center; }
+  .logo { font-size: 44px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+  .logo span { color: var(--accent); }
+  .tagline { color: var(--muted); margin: 10px 0 28px 0; font-size: 14px; max-width: 320px; line-height: 1.5; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 20px; width: 100%; max-width: 360px; }
+  .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 12px; }
+  .pick-row { display: flex; gap: 10px; }
+  .pick { flex: 1; padding: 14px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; color: var(--text); font-weight: 600; font-size: 14px; }
+  .pick.active { background: var(--accent); color: #0b1110; border-color: var(--accent); }
+  .start-btn { margin-top: 18px; width: 100%; padding: 16px; border-radius: 14px; background: var(--accent); color: #0b1110; font-weight: 700; border: none; font-size: 16px; }
+  .start-btn:disabled { opacity: 0.5; }
+  .fineprint { margin-top: 14px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+  /* ---------- Game screen ---------- */
+  #gameScreen { background: black; }
+  #videoWrap { position: relative; flex: 1; overflow: hidden; }
+  #video, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #overlay { pointer-events: none; }
+  #hud { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; z-index: 5; }
+  .pill { background: rgba(0,0,0,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 6px 12px; color: white; font-size: 13px; font-weight: 600; }
+  .pill .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-right: 6px; vertical-align: middle; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+  #playerChips { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .chip { background: rgba(0,0,0,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1.5px solid; border-radius: 12px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
+  #footer { position: absolute; bottom: 24px; left: 0; right: 0; z-index: 5; display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom); }
+  .end-btn { background: var(--danger); color: white; border: none; padding: 14px 28px; border-radius: 999px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+  #status { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.55); padding: 8px 14px; border-radius: 999px; font-size: 12px; z-index: 5; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); white-space: nowrap; }
+
+  /* ---------- Results screen ---------- */
+  #resultsScreen { background: var(--bg); overflow-y: auto; padding: 24px 16px 60px 16px; display: block; }
+  #resultsScreen.screen { position: fixed; }
+  .results-h1 { font-size: 28px; font-weight: 800; margin: 8px 0 4px 0; letter-spacing: -0.02em; }
+  .results-sub { color: var(--muted); margin-bottom: 18px; font-size: 13px; }
+  .section-title { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.14em; margin: 22px 0 10px 0; }
+  .best-card { background: linear-gradient(135deg, rgba(216,255,58,0.18), rgba(109,255,180,0.06)); border: 1px solid rgba(216,255,58,0.4); border-radius: 18px; padding: 14px; display: flex; gap: 14px; align-items: center; }
+  .best-card img { width: 84px; height: 84px; object-fit: cover; border-radius: 14px; border: 2px solid var(--accent); background: var(--panel-2); }
+  .best-card h3 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+  .best-card p { margin: 4px 0 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+  .pcard img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--panel-2); display: block; }
+  .pcard .pn { font-size: 13px; font-weight: 700; margin-top: 8px; }
+  .pcard .stat { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .pcard .stat b { color: var(--text); font-weight: 600; }
+  .shot-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: flex; gap: 12px; align-items: center; }
+  .shot-card img { width: 96px; height: 96px; object-fit: cover; border-radius: 12px; background: var(--panel-2); }
+  .shot-card .meta { font-size: 13px; flex: 1; }
+  .shot-card .meta b { display: block; font-size: 15px; margin-bottom: 4px; }
+  .missrow { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 6px; font-size: 13px; color: var(--text); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .missrow .t { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .improve { padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 8px; font-size: 13px; }
+  .improve .head { font-weight: 700; margin-bottom: 6px; }
+  .improve .note { color: var(--muted); margin-top: 3px; line-height: 1.5; }
+  .restart-btn { display: block; margin: 28px auto 0; padding: 14px 28px; background: var(--accent); color: #0b1110; border: none; border-radius: 999px; font-weight: 700; font-size: 15px; }
+
+  /* ---------- Loader ---------- */
+  #loader { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 100; color: white; }
+  .spinner { width: 38px; height: 38px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loaderMsg { font-size: 13px; color: rgba(255,255,255,0.8); }
+</style>
+</head>
+<body>
+
+<!-- ============ SETUP ============ -->
+<div id="setupScreen" class="screen">
+  <div class="logo"><span>Pic</span>klytics</div>
+  <div class="tagline">Point your camera at a pickleball match. We track players, find the best shots, and pick the MVP — all on-device.</div>
+  <div class="card">
+    <div class="label">Match Type</div>
+    <div class="pick-row">
+      <button class="pick" data-players="2">Singles · 2</button>
+      <button class="pick active" data-players="4">Doubles · 4</button>
+    </div>
+    <button class="start-btn" id="startBtn">Start Match</button>
+    <div class="fineprint">
+      Best results: frame the whole court, back camera, good lighting. Models run in your browser — no video is uploaded.
+    </div>
+  </div>
+</div>
+
+<!-- ============ GAME ============ -->
+<div id="gameScreen" class="screen hidden">
+  <div id="videoWrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div id="hud">
+      <div class="pill"><span class="dot"></span><span id="timer">00:00</span></div>
+      <div id="playerChips"></div>
+    </div>
+    <div id="status">Loading pose model…</div>
+    <div id="footer">
+      <button class="end-btn" id="endBtn">End Match</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RESULTS ============ -->
+<div id="resultsScreen" class="screen hidden">
+  <div class="results-h1">Match Recap</div>
+  <div class="results-sub" id="recapSub"></div>
+
+  <div class="section-title">Most Valuable Player</div>
+  <div id="mvpCard"></div>
+
+  <div class="section-title">Best Shot of the Match</div>
+  <div id="bestShotCard"></div>
+
+  <div class="section-title">Players</div>
+  <div class="grid" id="playerGrid"></div>
+
+  <div class="section-title">Errors &amp; Misses</div>
+  <div id="missList"></div>
+
+  <div class="section-title">Areas of Improvement</div>
+  <div id="improveList"></div>
+
+  <button class="restart-btn" id="restartBtn">New Match</button>
+</div>
+
+<div id="loader" class="hidden">
+  <div class="spinner"></div>
+  <div id="loaderMsg">Loading…</div>
+</div>
+
+<!-- TF.js + MoveNet -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.20.0/dist/tf-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.20.0/dist/tf-converter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.20.0/dist/tf-backend-webgl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+
+<script>
+/* =========================================================
+   Picklytics — on-device pickleball match analyzer
+   ========================================================= */
+
+const PLAYER_COLORS = ['#d8ff3a', '#5ad7ff', '#ff8bd1', '#ffb86b'];
+
+const state = {
+  maxPlayers: 4,
+  detector: null,
+  video: null,
+  overlay: null,
+  ctx: null,
+  running: false,
+  startTime: 0,
+  rafId: null,
+  tracks: [],
+  nextId: 1,
+  events: { bestShots: [], misses: [] },
+  frameSize: { w: 0, h: 0 },
+};
+
+const $ = id => document.getElementById(id);
+
+/* ---------- Setup interactions ---------- */
+document.querySelectorAll('.pick').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pick').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.maxPlayers = +btn.dataset.players;
+  });
+});
+
+$('startBtn').addEventListener('click', startMatch);
+$('endBtn').addEventListener('click', endMatch);
+$('restartBtn').addEventListener('click', () => location.reload());
+
+function showLoader(msg) { $('loaderMsg').textContent = msg; $('loader').classList.remove('hidden'); }
+function hideLoader() { $('loader').classList.add('hidden'); }
+
+/* ---------- Start match ---------- */
+async function startMatch() {
+  showLoader('Requesting camera…');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+
+    state.video = $('video');
+    state.video.srcObject = stream;
+    await new Promise(res => { state.video.onloadedmetadata = res; });
+    await state.video.play();
+
+    state.frameSize = { w: state.video.videoWidth, h: state.video.videoHeight };
+    state.overlay = $('overlay');
+    state.overlay.width  = state.frameSize.w;
+    state.overlay.height = state.frameSize.h;
+    state.ctx = state.overlay.getContext('2d');
+
+    showLoader('Loading pose model…');
+    await tf.setBackend('webgl');
+    await tf.ready();
+
+    state.detector = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      {
+        modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING,
+        enableTracking: true,
+        trackerType: poseDetection.TrackerType.BoundingBox,
+      }
+    );
+
+    $('setupScreen').classList.add('hidden');
+    $('gameScreen').classList.remove('hidden');
+    hideLoader();
+
+    state.running = true;
+    state.startTime = performance.now();
+    $('status').textContent = 'Tracking players…';
+    setTimeout(() => $('status').classList.add('hidden'), 2500);
+
+    requestAnimationFrame(loop);
+    tickTimer();
+  } catch (err) {
+    hideLoader();
+    console.error(err);
+    alert(
+      'Could not start the match.\n\n' +
+      (err.name === 'NotAllowedError'
+        ? 'Camera permission was denied. Allow camera access and try again.'
+        : err.message) +
+      '\n\nNote: Camera access requires HTTPS or http://localhost.'
+    );
+  }
+}
+
+function tickTimer() {
+  if (!state.running) return;
+  const sec = Math.floor((performance.now() - state.startTime) / 1000);
+  $('timer').textContent =
+    `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
+  setTimeout(tickTimer, 1000);
+}
+
+/* ---------- Main detection loop ---------- */
+async function loop() {
+  if (!state.running) return;
+  try {
+    const poses = await state.detector.estimatePoses(state.video, { flipHorizontal: false });
+    processPoses(poses, performance.now());
+    drawOverlay(poses);
+    renderPlayerChips();
+  } catch (e) {
+    console.warn('detect error', e);
+  }
+  state.rafId = requestAnimationFrame(loop);
+}
+
+/* ---------- Helpers ---------- */
+function bboxFromKeypoints(kps) {
+  const xs = [], ys = [];
+  for (const k of kps) if (k.score > 0.3) { xs.push(k.x); ys.push(k.y); }
+  if (xs.length < 3) return null;
+  const x = Math.min(...xs), y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+}
+
+function iou(a, b) {
+  const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+  const x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h);
+  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+  const u = a.w * a.h + b.w * b.h - inter;
+  return u <= 0 ? 0 : inter / u;
+}
+
+/* ---------- Tracking ---------- */
+function processPoses(poses, now) {
+  const detections = poses
+    .map(p => ({ pose: p, bbox: bboxFromKeypoints(p.keypoints), trackerId: p.id }))
+    .filter(d => d.bbox);
+
+  // Sort by bbox area descending so larger (closer) poses claim IDs first
+  detections.sort((a, b) => (b.bbox.w * b.bbox.h) - (a.bbox.w * a.bbox.h));
+
+  const claimed = new Set();
+  for (const det of detections) {
+    // Try MoveNet tracker id
+    let track = state.tracks.find(t => t.trackerId != null && t.trackerId === det.trackerId);
+
+    // Fallback: IoU match against recent tracks not yet claimed this frame
+    if (!track) {
+      const candidates = state.tracks.filter(t =>
+        !claimed.has(t.id) && (now - t.lastSeen) < 1500
+      );
+      let best = null, bestI = 0.18;
+      for (const t of candidates) {
+        const i = iou(t.bbox, det.bbox);
+        if (i > bestI) { bestI = i; best = t; }
+      }
+      track = best;
+    }
+
+    // New player
+    if (!track) {
+      if (state.tracks.length < state.maxPlayers) {
+        track = makeTrack(det.bbox, now);
+      } else {
+        // assign to closest existing track if all slots are taken
+        let best = null, bestD = Infinity;
+        for (const t of state.tracks) {
+          if (claimed.has(t.id)) continue;
+          const d = Math.hypot(
+            (t.bbox.x + t.bbox.w/2) - (det.bbox.x + det.bbox.w/2),
+            (t.bbox.y + t.bbox.h/2) - (det.bbox.y + det.bbox.h/2)
+          );
+          if (d < bestD) { bestD = d; best = t; }
+        }
+        track = best;
+      }
+    }
+    if (track) {
+      claimed.add(track.id);
+      updateTrack(track, det, now);
+    }
+  }
+}
+
+function makeTrack(bbox, now) {
+  const id = state.nextId++;
+  const color = PLAYER_COLORS[(id - 1) % PLAYER_COLORS.length];
+  const snapshot = grabSnapshot(bbox);
+  const track = {
+    id, color, bbox, lastBBox: bbox, lastSeen: now, trackerId: null,
+    snapshot,
+    stats: {
+      swings: 0, peakSwingSpeed: 0, totalMovement: 0,
+      frameCount: 0, missedReactions: 0
+    },
+    history: [],
+    lastWristL: null, lastWristR: null,
+    lastSwingL: 0, lastSwingR: 0,
+    lastFrameTime: now,
+  };
+  state.tracks.push(track);
+  return track;
+}
+
+function grabSnapshot(bbox) {
+  const pad = 0.2;
+  const v = state.video;
+  if (!v || !v.videoWidth) return '';
+  const sx = Math.max(0, bbox.x - bbox.w * pad);
+  const sy = Math.max(0, bbox.y - bbox.h * pad);
+  const sw = Math.min(v.videoWidth - sx, bbox.w * (1 + pad * 2));
+  const sh = Math.min(v.videoHeight - sy, bbox.h * (1 + pad * 2));
+  if (sw < 10 || sh < 10) return '';
+  const size = 220;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0b1110'; ctx.fillRect(0, 0, size, size);
+  const scale = Math.min(size / sw, size / sh);
+  const dw = sw * scale, dh = sh * scale;
+  ctx.drawImage(v, sx, sy, sw, sh, (size - dw) / 2, (size - dh) / 2, dw, dh);
+  return c.toDataURL('image/jpeg', 0.72);
+}
+
+function updateTrack(track, det, now) {
+  const dt = Math.max(0.016, (now - track.lastFrameTime) / 1000);
+  const prevCx = track.bbox.x + track.bbox.w / 2;
+  const prevCy = track.bbox.y + track.bbox.h / 2;
+  const newCx = det.bbox.x + det.bbox.w / 2;
+  const newCy = det.bbox.y + det.bbox.h / 2;
+  const moveNorm = Math.hypot(newCx - prevCx, newCy - prevCy) / state.frameSize.w;
+
+  track.lastBBox = track.bbox;
+  track.bbox = det.bbox;
+  track.lastSeen = now;
+  if (det.trackerId != null) track.trackerId = det.trackerId;
+  track.lastFrameTime = now;
+  track.stats.frameCount++;
+  track.stats.totalMovement += moveNorm;
+
+  track.history.push({ t: now, move: moveNorm });
+  if (track.history.length > 80) track.history.shift();
+
+  const kps = det.pose.keypoints;
+  const lw = kps.find(k => k.name === 'left_wrist');
+  const rw = kps.find(k => k.name === 'right_wrist');
+  checkSwing(track, lw, 'L', dt, now);
+  checkSwing(track, rw, 'R', dt, now);
+}
+
+function checkSwing(track, wrist, side, dt, now) {
+  const lastKey  = 'lastWrist' + side;
+  const cooldown = 'lastSwing' + side;
+  if (!wrist || wrist.score < 0.3) { track[lastKey] = null; return; }
+  const prev = track[lastKey];
+  if (prev) {
+    const dx = wrist.x - prev.x;
+    const dy = wrist.y - prev.y;
+    const speed = Math.hypot(dx, dy) / dt / state.frameSize.w; // widths/sec
+    if (speed > 2.4) {
+      if (now - track[cooldown] > 380) {
+        track.stats.swings++;
+        track[cooldown] = now;
+      }
+      if (speed > track.stats.peakSwingSpeed) {
+        track.stats.peakSwingSpeed = speed;
+        const snap = grabSnapshot(track.bbox);
+        state.events.bestShots.push({ trackId: track.id, speed, t: now, snapshot: snap });
+        state.events.bestShots.sort((a, b) => b.speed - a.speed);
+        if (state.events.bestShots.length > 8) state.events.bestShots.length = 8;
+      }
+    }
+  }
+  track[lastKey] = { x: wrist.x, y: wrist.y };
+}
+
+/* ---------- Missed reaction detection ---------- */
+function checkMissedReactions(now) {
+  const active = state.tracks.filter(t => now - t.lastSeen < 1000);
+  if (active.length < 2) return;
+  const recentAvg = active.map(t => {
+    const recent = t.history.filter(h => now - h.t < 900);
+    return recent.length ? recent.reduce((s, h) => s + h.move, 0) / recent.length : 0;
+  });
+  const rallyAvg = recentAvg.reduce((s, v) => s + v, 0) / recentAvg.length;
+  if (rallyAvg < 0.0035) return; // not enough motion overall — likely a pause
+  active.forEach((t, i) => {
+    if (recentAvg[i] < rallyAvg * 0.22) {
+      const last = state.events.misses[state.events.misses.length - 1];
+      if (!last || now - last.t > 1800 || last.trackId !== t.id) {
+        state.events.misses.push({ trackId: t.id, t: now });
+        t.stats.missedReactions++;
+      }
+    }
+  });
+}
+setInterval(() => { if (state.running) checkMissedReactions(performance.now()); }, 700);
+
+/* ---------- Drawing ---------- */
+const SKELETON = [
+  ['left_shoulder','right_shoulder'],
+  ['left_shoulder','left_elbow'], ['left_elbow','left_wrist'],
+  ['right_shoulder','right_elbow'], ['right_elbow','right_wrist'],
+  ['left_shoulder','left_hip'], ['right_shoulder','right_hip'], ['left_hip','right_hip'],
+  ['left_hip','left_knee'], ['left_knee','left_ankle'],
+  ['right_hip','right_knee'], ['right_knee','right_ankle'],
+];
+
+function drawOverlay(poses) {
+  const ctx = state.ctx;
+  ctx.clearRect(0, 0, state.overlay.width, state.overlay.height);
+  for (const pose of poses) {
+    const bbox = bboxFromKeypoints(pose.keypoints);
+    if (!bbox) continue;
+
+    let track = state.tracks.find(t => t.trackerId === pose.id);
+    if (!track) {
+      let bestI = 0.05, best = null;
+      for (const t of state.tracks) {
+        const i = iou(t.bbox, bbox);
+        if (i > bestI) { bestI = i; best = t; }
+      }
+      track = best;
+    }
+    const color = track ? track.color : 'rgba(255,255,255,0.6)';
+    const label = track ? `P${track.id}` : '?';
+    drawPose(ctx, pose, color, label);
+  }
+}
+
+function drawPose(ctx, pose, color, label) {
+  const lookup = {};
+  for (const k of pose.keypoints) lookup[k.name] = k;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  for (const [a, b] of SKELETON) {
+    const A = lookup[a], B = lookup[b];
+    if (!A || !B || A.score < 0.3 || B.score < 0.3) continue;
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+  }
+  for (const k of pose.keypoints) {
+    if (k.score < 0.3) continue;
+    ctx.beginPath(); ctx.arc(k.x, k.y, 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+  const head = lookup['nose'] || lookup['left_eye'] || lookup['right_eye'] || pose.keypoints[0];
+  if (head && head.score > 0.2) {
+    const x = head.x;
+    const y = Math.max(22, head.y - 22);
+    ctx.fillStyle = color;
+    roundRect(ctx, x - 20, y - 14, 40, 24, 8);
+    ctx.fill();
+    ctx.fillStyle = '#0b1110';
+    ctx.font = 'bold 14px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, y - 1);
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function renderPlayerChips() {
+  const wrap = $('playerChips');
+  if (wrap.children.length === state.tracks.length) return;
+  wrap.innerHTML = '';
+  for (const t of state.tracks) {
+    const c = document.createElement('div');
+    c.className = 'chip';
+    c.style.borderColor = t.color;
+    c.style.color = t.color;
+    c.textContent = `P${t.id}`;
+    wrap.appendChild(c);
+  }
+}
+
+/* ---------- End match + results ---------- */
+function endMatch() {
+  state.running = false;
+  cancelAnimationFrame(state.rafId);
+  const stream = state.video && state.video.srcObject;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  $('gameScreen').classList.add('hidden');
+  showResults();
+}
+
+function fmtTime(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+function showResults() {
+  $('resultsScreen').classList.remove('hidden');
+  const durMs = performance.now() - state.startTime;
+  const min = Math.floor(durMs/60000), sec = Math.floor((durMs%60000)/1000);
+  $('recapSub').textContent =
+    `${min}m ${sec}s match · ${state.tracks.length} player${state.tracks.length===1?'':'s'} tracked`;
+
+  // Per-player score
+  const scored = state.tracks.map(t => {
+    const s = t.stats;
+    const score =
+      s.totalMovement * 80     // coverage
+    + s.swings * 7             // activity
+    + s.peakSwingSpeed * 12    // power
+    - s.missedReactions * 14;  // attentiveness
+    return { t, score };
+  }).sort((a, b) => b.score - a.score);
+
+  // MVP
+  if (scored.length) {
+    const mvp = scored[0];
+    const why = describeMvp(mvp.t, scored);
+    $('mvpCard').innerHTML = `
+      <div class="best-card">
+        <img src="${mvp.t.snapshot}" alt="MVP">
+        <div>
+          <h3 style="color:${mvp.t.color}">Player ${mvp.t.id}</h3>
+          <p>${why}</p>
+        </div>
+      </div>`;
+  } else {
+    $('mvpCard').innerHTML = `
+      <div class="best-card"><div><h3>No players</h3><p>No players were tracked during the match.</p></div></div>`;
+  }
+
+  // Best shot
+  const best = state.events.bestShots[0];
+  if (best) {
+    const t = state.tracks.find(x => x.id === best.trackId);
+    $('bestShotCard').innerHTML = `
+      <div class="shot-card">
+        <img src="${best.snapshot}" alt="Best shot">
+        <div class="meta">
+          <b style="color:${t ? t.color : '#fff'}">Player ${best.trackId}</b>
+          <span style="color:var(--muted)">Wrist speed ${best.speed.toFixed(2)} u/s
+          · at ${fmtTime(best.t - state.startTime)}</span>
+        </div>
+      </div>`;
+  } else {
+    $('bestShotCard').innerHTML = `
+      <div class="shot-card"><div class="meta">
+        <b>No standout shot detected</b>
+        <span style="color:var(--muted)">Make sure wrists are visible to the camera.</span>
+      </div></div>`;
+  }
+
+  // Player grid
+  const grid = $('playerGrid');
+  grid.innerHTML = '';
+  for (const { t, score } of scored) {
+    const card = document.createElement('div');
+    card.className = 'pcard';
+    card.innerHTML = `
+      <img src="${t.snapshot}" alt="Player ${t.id}">
+      <div class="pn" style="color:${t.color}">Player ${t.id}</div>
+      <div class="stat"><span>Movement</span><b>${t.stats.totalMovement.toFixed(1)}</b></div>
+      <div class="stat"><span>Swings</span><b>${t.stats.swings}</b></div>
+      <div class="stat"><span>Peak shot</span><b>${t.stats.peakSwingSpeed.toFixed(1)}</b></div>
+      <div class="stat"><span>Misses</span><b>${t.stats.missedReactions}</b></div>
+      <div class="stat" style="margin-top:6px; padding-top:6px; border-top:1px solid var(--line);"><span>Score</span><b>${Math.round(score)}</b></div>
+    `;
+    grid.appendChild(card);
+  }
+
+  // Misses
+  const miss = $('missList');
+  miss.innerHTML = '';
+  if (!state.events.misses.length) {
+    miss.innerHTML = `<div class="missrow"><span>No clear missed reactions detected — sharp play all around.</span></div>`;
+  } else {
+    for (const m of state.events.misses.slice(-12).reverse()) {
+      const t = state.tracks.find(x => x.id === m.trackId);
+      const row = document.createElement('div');
+      row.className = 'missrow';
+      row.innerHTML = `
+        <span style="color:${t ? t.color : '#fff'}"><b>Player ${m.trackId}</b> · slow reaction during rally</span>
+        <span class="t">${fmtTime(m.t - state.startTime)}</span>`;
+      miss.appendChild(row);
+    }
+  }
+
+  // Improvement notes
+  const imp = $('improveList');
+  imp.innerHTML = '';
+  for (const { t } of scored) {
+    const notes = improvementNotes(t);
+    const div = document.createElement('div');
+    div.className = 'improve';
+    div.innerHTML =
+      `<div class="head" style="color:${t.color}">Player ${t.id}</div>` +
+      notes.map(n => `<div class="note">• ${n}</div>`).join('');
+    imp.appendChild(div);
+  }
+}
+
+function describeMvp(t, scored) {
+  const bits = [];
+  bits.push(`${t.stats.swings} swing${t.stats.swings===1?'':'s'}`);
+  bits.push(`peak ${t.stats.peakSwingSpeed.toFixed(1)} u/s`);
+  bits.push(`${t.stats.totalMovement.toFixed(1)} coverage`);
+  if (t.stats.missedReactions === 0) bits.push('no missed reactions');
+  return `Top score across all players — ${bits.join(' · ')}.`;
+}
+
+function improvementNotes(t) {
+  const s = t.stats;
+  const notes = [];
+  if (s.totalMovement < 4)        notes.push('Cover more of the court — overall movement was low.');
+  if (s.swings < 4)               notes.push('Be more proactive on returns — relatively few swings detected.');
+  if (s.missedReactions > 3)      notes.push('Stay reactive during rallies — multiple late reactions detected.');
+  if (s.peakSwingSpeed < 3)       notes.push('Work on swing power and follow-through.');
+  if (s.peakSwingSpeed > 6 && s.swings > 10)
+                                  notes.push('Strong, frequent swings — focus next on placement and consistency.');
+  if (!notes.length)              notes.push('Balanced game — keep refining shot selection and court positioning.');
+  return notes;
+}
+</script>
+</body>
+</html>
