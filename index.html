@@ -5,108 +5,312 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Picklytics</title>
+<meta name="theme-color" content="#0b1110">
+<title>Picklytics — Your AI Pickleball Coach</title>
 <style>
   :root {
     --bg: #0b1110;
+    --bg-2: #0e1716;
     --panel: #131b1a;
     --panel-2: #1a2424;
     --line: #25342f;
     --text: #e8f1ee;
     --muted: #93a39d;
-    --accent: #d8ff3a;       /* pickleball yellow-green */
+    --accent: #d8ff3a;
+    --accent-2: #6dffb4;
     --danger: #ff6a6a;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+  html, body {
+    margin: 0; padding: 0; min-height: 100%; background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
-    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
+  body { overflow-x: hidden; }
   button { font: inherit; cursor: pointer; }
+  a { color: var(--accent); text-decoration: none; }
 
   .screen { position: fixed; inset: 0; display: flex; flex-direction: column;
     padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   }
   .hidden { display: none !important; }
 
-  /* ---------- Setup screen ---------- */
-  #setupScreen { justify-content: center; align-items: center; padding: 24px; text-align: center; }
-  .logo { font-size: 44px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
-  .logo span { color: var(--accent); }
-  .tagline { color: var(--muted); margin: 10px 0 28px 0; font-size: 14px; max-width: 320px; line-height: 1.5; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 20px; width: 100%; max-width: 360px; }
-  .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 12px; }
-  .pick-row { display: flex; gap: 10px; }
-  .pick { flex: 1; padding: 14px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; color: var(--text); font-weight: 600; font-size: 14px; }
-  .pick.active { background: var(--accent); color: #0b1110; border-color: var(--accent); }
-  .start-btn { margin-top: 18px; width: 100%; padding: 16px; border-radius: 14px; background: var(--accent); color: #0b1110; font-weight: 700; border: none; font-size: 16px; }
-  .start-btn:disabled { opacity: 0.5; }
-  .fineprint { margin-top: 14px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+  /* ============ SETUP / HOME ============ */
+  #setupScreen {
+    overflow-y: auto;
+    background:
+      radial-gradient(1100px 600px at 50% -10%, rgba(216,255,58,0.10), transparent 60%),
+      radial-gradient(700px 500px at 100% 100%, rgba(109,255,180,0.07), transparent 60%),
+      var(--bg);
+    padding: 28px 18px 40px 18px;
+    align-items: center;
+  }
+  .home {
+    width: 100%; max-width: 420px; margin: 0 auto;
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .ball {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f3ff7c, #c9f028 70%, #8aac1f);
+    box-shadow: 0 0 24px rgba(216,255,58,0.35);
+    position: relative; flex-shrink: 0;
+  }
+  .ball::before, .ball::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background:
+      radial-gradient(circle at 60% 50%, transparent 7px, rgba(0,0,0,0.18) 7px, rgba(0,0,0,0.18) 8px, transparent 8px),
+      radial-gradient(circle at 30% 70%, transparent 5px, rgba(0,0,0,0.18) 5px, rgba(0,0,0,0.18) 6px, transparent 6px),
+      radial-gradient(circle at 70% 25%, transparent 4px, rgba(0,0,0,0.18) 4px, rgba(0,0,0,0.18) 5px, transparent 5px);
+  }
+  .brand { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+  .brand span { color: var(--accent); }
 
-  /* ---------- Game screen ---------- */
+  .hero h1 {
+    margin: 8px 0 10px 0;
+    font-size: 38px; line-height: 1.02; letter-spacing: -0.025em; font-weight: 800;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p {
+    margin: 0 0 22px 0; color: var(--muted); font-size: 15px; line-height: 1.55;
+  }
+
+  .features {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px;
+  }
+  .feat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 12px 11px 12px;
+  }
+  .feat .ic {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: rgba(216,255,58,0.13); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 8px;
+  }
+  .feat .ic svg { width: 17px; height: 17px; }
+  .feat b { font-size: 13.5px; font-weight: 700; display: block; }
+  .feat span { color: var(--muted); font-size: 11.5px; line-height: 1.45; display: block; margin-top: 2px; }
+
+  .pick-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .label {
+    color: var(--muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.14em; margin-bottom: 10px; font-weight: 600;
+  }
+  .pick-row { display: flex; gap: 10px; }
+  .pick {
+    flex: 1; padding: 13px; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 12px; color: var(--text); font-weight: 600; font-size: 14px;
+    transition: all 0.15s;
+  }
+  .pick.active { background: var(--accent); color: #0b1110; border-color: var(--accent); }
+
+  .start-btn {
+    width: 100%; padding: 17px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), #b8e000);
+    color: #0b1110; font-weight: 800; border: none; font-size: 16px;
+    letter-spacing: 0.01em;
+    box-shadow: 0 10px 30px -10px rgba(216,255,58,0.6);
+    transition: transform 0.15s;
+  }
+  .start-btn:active { transform: scale(0.98); }
+
+  .takeaway {
+    margin-top: 18px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .takeaway svg { width: 16px; height: 16px; color: var(--accent-2); flex-shrink: 0; margin-top: 2px; }
+  .takeaway p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+  .takeaway p b { color: var(--text); font-weight: 600; }
+
+  .privacy {
+    margin: 18px 0 4px 0; text-align: center; color: var(--muted);
+    font-size: 11px; letter-spacing: 0.04em;
+  }
+  .privacy .dot { color: var(--accent); margin: 0 6px; }
+
+  /* ============ GAME ============ */
   #gameScreen { background: black; }
   #videoWrap { position: relative; flex: 1; overflow: hidden; }
   #video, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   #overlay { pointer-events: none; }
-  #hud { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; z-index: 5; }
-  .pill { background: rgba(0,0,0,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 6px 12px; color: white; font-size: 13px; font-weight: 600; }
-  .pill .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-right: 6px; vertical-align: middle; animation: pulse 1.2s ease-in-out infinite; }
+  #hud { position: absolute; top: 12px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; z-index: 5; }
+  .pill { background: rgba(0,0,0,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 6px 12px;
+    color: white; font-size: 13px; font-weight: 600; }
+  .pill .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--danger); margin-right: 6px; vertical-align: middle;
+    animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
   #playerChips { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-  .chip { background: rgba(0,0,0,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1.5px solid; border-radius: 12px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
-  #footer { position: absolute; bottom: 24px; left: 0; right: 0; z-index: 5; display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom); }
-  .end-btn { background: var(--danger); color: white; border: none; padding: 14px 28px; border-radius: 999px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
-  #status { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.55); padding: 8px 14px; border-radius: 999px; font-size: 12px; z-index: 5; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); white-space: nowrap; }
+  .chip { background: rgba(0,0,0,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1.5px solid; border-radius: 12px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
+  #footer { position: absolute; bottom: 24px; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom); }
+  .end-btn { background: var(--danger); color: white; border: none;
+    padding: 14px 28px; border-radius: 999px; font-weight: 700; font-size: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+  #status { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+    color: white; background: rgba(0,0,0,0.55); padding: 8px 14px; border-radius: 999px;
+    font-size: 12px; z-index: 5; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    white-space: nowrap; }
 
-  /* ---------- Results screen ---------- */
-  #resultsScreen { background: var(--bg); overflow-y: auto; padding: 24px 16px 60px 16px; display: block; }
-  #resultsScreen.screen { position: fixed; }
-  .results-h1 { font-size: 28px; font-weight: 800; margin: 8px 0 4px 0; letter-spacing: -0.02em; }
-  .results-sub { color: var(--muted); margin-bottom: 18px; font-size: 13px; }
-  .section-title { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.14em; margin: 22px 0 10px 0; }
-  .best-card { background: linear-gradient(135deg, rgba(216,255,58,0.18), rgba(109,255,180,0.06)); border: 1px solid rgba(216,255,58,0.4); border-radius: 18px; padding: 14px; display: flex; gap: 14px; align-items: center; }
-  .best-card img { width: 84px; height: 84px; object-fit: cover; border-radius: 14px; border: 2px solid var(--accent); background: var(--panel-2); }
+  /* ============ RESULTS ============ */
+  #resultsScreen { background: var(--bg); overflow-y: auto; padding: 24px 16px 60px 16px; }
+  .results-h1 { font-size: 30px; font-weight: 800; margin: 8px 0 4px 0; letter-spacing: -0.025em; }
+  .results-sub { color: var(--muted); margin-bottom: 14px; font-size: 13px; }
+  .section-title { font-size: 11px; text-transform: uppercase; color: var(--muted);
+    letter-spacing: 0.14em; margin: 22px 0 10px 0; font-weight: 600; }
+  .dl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 8px 0; }
+  .dl-btn {
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    padding: 12px 12px; border-radius: 12px; font-weight: 600; font-size: 13px;
+    display: flex; align-items: center; gap: 8px; justify-content: center;
+  }
+  .dl-btn.primary { background: var(--accent); color: #0b1110; border-color: var(--accent); }
+  .dl-btn svg { width: 15px; height: 15px; }
+  .dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .best-card { background: linear-gradient(135deg, rgba(216,255,58,0.18), rgba(109,255,180,0.06));
+    border: 1px solid rgba(216,255,58,0.4); border-radius: 18px; padding: 14px;
+    display: flex; gap: 14px; align-items: center; }
+  .best-card img { width: 84px; height: 84px; object-fit: cover; border-radius: 14px;
+    border: 2px solid var(--accent); background: var(--panel-2); }
   .best-card h3 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
   .best-card p { margin: 4px 0 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
   .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
-  .pcard img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--panel-2); display: block; }
+  .pcard img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px;
+    background: var(--panel-2); display: block; }
   .pcard .pn { font-size: 13px; font-weight: 700; margin-top: 8px; }
-  .pcard .stat { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .pcard .stat { display: flex; justify-content: space-between; font-size: 12px;
+    color: var(--muted); margin-top: 4px; }
   .pcard .stat b { color: var(--text); font-weight: 600; }
-  .shot-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: flex; gap: 12px; align-items: center; }
-  .shot-card img { width: 96px; height: 96px; object-fit: cover; border-radius: 12px; background: var(--panel-2); }
+  .pcard .dl-mini {
+    margin-top: 9px; width: 100%; padding: 7px; background: var(--panel-2);
+    border: 1px solid var(--line); color: var(--text); border-radius: 9px;
+    font-size: 11.5px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .pcard .dl-mini svg { width: 11px; height: 11px; }
+
+  .shot-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 12px; display: flex; gap: 12px; align-items: center; }
+  .shot-card img { width: 96px; height: 96px; object-fit: cover; border-radius: 12px;
+    background: var(--panel-2); }
   .shot-card .meta { font-size: 13px; flex: 1; }
   .shot-card .meta b { display: block; font-size: 15px; margin-bottom: 4px; }
-  .missrow { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 6px; font-size: 13px; color: var(--text); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .missrow { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; margin-bottom: 6px; font-size: 13px; color: var(--text);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .missrow .t { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
-  .improve { padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 8px; font-size: 13px; }
+  .improve { padding: 12px 14px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; margin-bottom: 8px; font-size: 13px; }
   .improve .head { font-weight: 700; margin-bottom: 6px; }
   .improve .note { color: var(--muted); margin-top: 3px; line-height: 1.5; }
-  .restart-btn { display: block; margin: 28px auto 0; padding: 14px 28px; background: var(--accent); color: #0b1110; border: none; border-radius: 999px; font-weight: 700; font-size: 15px; }
+  .restart-btn { display: block; margin: 28px auto 0; padding: 14px 28px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 999px; font-weight: 600; font-size: 14px; }
 
-  /* ---------- Loader ---------- */
-  #loader { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 100; color: white; }
-  .spinner { width: 38px; height: 38px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  /* ============ LOADER ============ */
+  #loader { position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    gap: 14px; z-index: 100; color: white; }
+  .spinner { width: 38px; height: 38px; border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #loaderMsg { font-size: 13px; color: rgba(255,255,255,0.8); }
+  #loaderMsg { font-size: 13px; color: rgba(255,255,255,0.85); }
+
+  /* ============ TOAST ============ */
+  #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,30,28,0.95); color: white; padding: 10px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; z-index: 200; border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 
-<!-- ============ SETUP ============ -->
+<!-- ============ SETUP / HOME ============ -->
 <div id="setupScreen" class="screen">
-  <div class="logo"><span>Pic</span>klytics</div>
-  <div class="tagline">Point your camera at a pickleball match. We track players, find the best shots, and pick the MVP — all on-device.</div>
-  <div class="card">
-    <div class="label">Match Type</div>
-    <div class="pick-row">
-      <button class="pick" data-players="2">Singles · 2</button>
-      <button class="pick active" data-players="4">Doubles · 4</button>
+  <div class="home">
+    <div class="brand-row">
+      <div class="ball"></div>
+      <div class="brand"><span>Pic</span>klytics</div>
     </div>
+
+    <div class="hero">
+      <h1>Your AI pickleball <em>coach</em>, on your phone.</h1>
+      <p>Point your camera at the court. We track every player in real time and turn the match into a shareable report. No cloud upload — it all runs in your browser.</p>
+    </div>
+
+    <div class="features">
+      <div class="feat">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M9 22l2-6 3 3 4-2"/><path d="M11 16l-3-4 4-3 4 2"/></svg>
+        </div>
+        <b>Player tracking</b>
+        <span>Up to 4 players, persistent IDs &amp; colors.</span>
+      </div>
+      <div class="feat">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 13h7l-1 9 9-11h-7l1-9z"/></svg>
+        </div>
+        <b>Shot power</b>
+        <span>Peak wrist speed &amp; swing count per rally.</span>
+      </div>
+      <div class="feat">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 17l4-7 4 4 6-9"/></svg>
+        </div>
+        <b>Court coverage</b>
+        <span>Movement &amp; positioning over the match.</span>
+      </div>
+      <div class="feat">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+        </div>
+        <b>Errors &amp; misses</b>
+        <span>Late reactions during rallies, flagged.</span>
+      </div>
+      <div class="feat">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0V4z"/><path d="M6 8H4a2 2 0 002 2M18 8h2a2 2 0 01-2 2"/></svg>
+        </div>
+        <b>MVP &amp; best shot</b>
+        <span>Match recap with the standout moment.</span>
+      </div>
+      <div class="feat">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </div>
+        <b>Downloadable reports</b>
+        <span>Match video + per-player PDF-ready.</span>
+      </div>
+    </div>
+
+    <div class="pick-card">
+      <div class="label">Match Type</div>
+      <div class="pick-row">
+        <button class="pick" data-players="2">Singles · 2</button>
+        <button class="pick active" data-players="4">Doubles · 4</button>
+      </div>
+    </div>
+
     <button class="start-btn" id="startBtn">Start Match</button>
-    <div class="fineprint">
-      Best results: frame the whole court, back camera, good lighting. Models run in your browser — no video is uploaded.
+
+    <div class="takeaway">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <p><b>Tip.</b> Frame the whole court horizontally, back camera, good light. Aim the wrists to be visible — that's how we read shots.</p>
+    </div>
+
+    <div class="privacy">
+      Runs on-device<span class="dot">•</span>No video uploaded<span class="dot">•</span>Free
     </div>
   </div>
 </div>
@@ -132,13 +336,25 @@
   <div class="results-h1">Match Recap</div>
   <div class="results-sub" id="recapSub"></div>
 
+  <div class="section-title">Downloads</div>
+  <div class="dl-row">
+    <button class="dl-btn primary" id="dlReport">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M9 13h6M9 17h6"/></svg>
+      Match report
+    </button>
+    <button class="dl-btn" id="dlVideo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Match video
+    </button>
+  </div>
+
   <div class="section-title">Most Valuable Player</div>
   <div id="mvpCard"></div>
 
   <div class="section-title">Best Shot of the Match</div>
   <div id="bestShotCard"></div>
 
-  <div class="section-title">Players</div>
+  <div class="section-title">Players · Tap to download report</div>
   <div class="grid" id="playerGrid"></div>
 
   <div class="section-title">Errors &amp; Misses</div>
@@ -154,6 +370,7 @@
   <div class="spinner"></div>
   <div id="loaderMsg">Loading…</div>
 </div>
+<div id="toast"></div>
 
 <!-- TF.js + MoveNet -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.20.0/dist/tf-core.min.js"></script>
@@ -162,9 +379,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
 
 <script>
-/* =========================================================
+/* ============================================================
    Picklytics — on-device pickleball match analyzer
-   ========================================================= */
+   ============================================================ */
 
 const PLAYER_COLORS = ['#d8ff3a', '#5ad7ff', '#ff8bd1', '#ffb86b'];
 
@@ -176,16 +393,22 @@ const state = {
   ctx: null,
   running: false,
   startTime: 0,
+  endTime: 0,
   rafId: null,
   tracks: [],
   nextId: 1,
-  events: { bestShots: [], misses: [] },
+  events: { bestShots: [], misses: [] }, // global top-N
   frameSize: { w: 0, h: 0 },
+  stream: null,
+  recorder: null,
+  recordedChunks: [],
+  videoBlob: null,
+  videoMime: '',
 };
 
 const $ = id => document.getElementById(id);
 
-/* ---------- Setup interactions ---------- */
+/* ---------- Setup ---------- */
 document.querySelectorAll('.pick').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.pick').forEach(b => b.classList.remove('active'));
@@ -197,9 +420,18 @@ document.querySelectorAll('.pick').forEach(btn => {
 $('startBtn').addEventListener('click', startMatch);
 $('endBtn').addEventListener('click', endMatch);
 $('restartBtn').addEventListener('click', () => location.reload());
+$('dlReport').addEventListener('click', () => downloadGeneralReport());
+$('dlVideo').addEventListener('click', () => downloadMatchVideo());
 
 function showLoader(msg) { $('loaderMsg').textContent = msg; $('loader').classList.remove('hidden'); }
 function hideLoader() { $('loader').classList.add('hidden'); }
+function toast(msg, ms = 2200) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), ms);
+}
 
 /* ---------- Start match ---------- */
 async function startMatch() {
@@ -213,7 +445,7 @@ async function startMatch() {
       },
       audio: false
     });
-
+    state.stream = stream;
     state.video = $('video');
     state.video.srcObject = stream;
     await new Promise(res => { state.video.onloadedmetadata = res; });
@@ -238,6 +470,9 @@ async function startMatch() {
       }
     );
 
+    // Start recording the match video
+    startRecording(stream);
+
     $('setupScreen').classList.add('hidden');
     $('gameScreen').classList.remove('hidden');
     hideLoader();
@@ -257,9 +492,50 @@ async function startMatch() {
       (err.name === 'NotAllowedError'
         ? 'Camera permission was denied. Allow camera access and try again.'
         : err.message) +
-      '\n\nNote: Camera access requires HTTPS or http://localhost.'
+      '\n\nNote: Camera access requires HTTPS.'
     );
   }
+}
+
+/* ---------- Match recording ---------- */
+function pickRecorderMime() {
+  if (typeof MediaRecorder === 'undefined') return null;
+  const cands = [
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  for (const m of cands) {
+    try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (_) {}
+  }
+  return '';
+}
+function startRecording(stream) {
+  state.recordedChunks = [];
+  state.videoBlob = null;
+  const mime = pickRecorderMime();
+  if (mime === null) return; // no MediaRecorder at all
+  state.videoMime = mime || 'video/webm';
+  try {
+    state.recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    state.recorder.ondataavailable = e => { if (e.data && e.data.size) state.recordedChunks.push(e.data); };
+    state.recorder.onstop = () => {
+      state.videoBlob = new Blob(state.recordedChunks, { type: state.videoMime });
+    };
+    state.recorder.start(1500);
+  } catch (e) {
+    console.warn('MediaRecorder failed:', e);
+    state.recorder = null;
+  }
+}
+function stopRecording() {
+  return new Promise(res => {
+    if (!state.recorder || state.recorder.state === 'inactive') return res();
+    state.recorder.addEventListener('stop', () => res(), { once: true });
+    try { state.recorder.stop(); } catch (e) { res(); }
+  });
 }
 
 function tickTimer() {
@@ -270,7 +546,7 @@ function tickTimer() {
   setTimeout(tickTimer, 1000);
 }
 
-/* ---------- Main detection loop ---------- */
+/* ---------- Detection loop ---------- */
 async function loop() {
   if (!state.running) return;
   try {
@@ -292,7 +568,6 @@ function bboxFromKeypoints(kps) {
   const x = Math.min(...xs), y = Math.min(...ys);
   return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
 }
-
 function iou(a, b) {
   const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
   const x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h);
@@ -306,20 +581,14 @@ function processPoses(poses, now) {
   const detections = poses
     .map(p => ({ pose: p, bbox: bboxFromKeypoints(p.keypoints), trackerId: p.id }))
     .filter(d => d.bbox);
-
-  // Sort by bbox area descending so larger (closer) poses claim IDs first
   detections.sort((a, b) => (b.bbox.w * b.bbox.h) - (a.bbox.w * a.bbox.h));
 
   const claimed = new Set();
   for (const det of detections) {
-    // Try MoveNet tracker id
     let track = state.tracks.find(t => t.trackerId != null && t.trackerId === det.trackerId);
-
-    // Fallback: IoU match against recent tracks not yet claimed this frame
     if (!track) {
       const candidates = state.tracks.filter(t =>
-        !claimed.has(t.id) && (now - t.lastSeen) < 1500
-      );
+        !claimed.has(t.id) && (now - t.lastSeen) < 1500);
       let best = null, bestI = 0.18;
       for (const t of candidates) {
         const i = iou(t.bbox, det.bbox);
@@ -327,29 +596,22 @@ function processPoses(poses, now) {
       }
       track = best;
     }
-
-    // New player
     if (!track) {
       if (state.tracks.length < state.maxPlayers) {
         track = makeTrack(det.bbox, now);
       } else {
-        // assign to closest existing track if all slots are taken
         let best = null, bestD = Infinity;
         for (const t of state.tracks) {
           if (claimed.has(t.id)) continue;
           const d = Math.hypot(
             (t.bbox.x + t.bbox.w/2) - (det.bbox.x + det.bbox.w/2),
-            (t.bbox.y + t.bbox.h/2) - (det.bbox.y + det.bbox.h/2)
-          );
+            (t.bbox.y + t.bbox.h/2) - (det.bbox.y + det.bbox.h/2));
           if (d < bestD) { bestD = d; best = t; }
         }
         track = best;
       }
     }
-    if (track) {
-      claimed.add(track.id);
-      updateTrack(track, det, now);
-    }
+    if (track) { claimed.add(track.id); updateTrack(track, det, now); }
   }
 }
 
@@ -357,20 +619,17 @@ function makeTrack(bbox, now) {
   const id = state.nextId++;
   const color = PLAYER_COLORS[(id - 1) % PLAYER_COLORS.length];
   const snapshot = grabSnapshot(bbox);
-  const track = {
+  return state.tracks[state.tracks.push({
     id, color, bbox, lastBBox: bbox, lastSeen: now, trackerId: null,
     snapshot,
-    stats: {
-      swings: 0, peakSwingSpeed: 0, totalMovement: 0,
-      frameCount: 0, missedReactions: 0
-    },
+    stats: { swings: 0, peakSwingSpeed: 0, totalMovement: 0, frameCount: 0, missedReactions: 0 },
     history: [],
     lastWristL: null, lastWristR: null,
     lastSwingL: 0, lastSwingR: 0,
     lastFrameTime: now,
-  };
-  state.tracks.push(track);
-  return track;
+    bestShots: [],   // top 3 swings: {speed, t, snapshot}
+    misses: [],      // first 5 miss snapshots: {t, snapshot}
+  }) - 1];
 }
 
 function grabSnapshot(bbox) {
@@ -427,16 +686,24 @@ function checkSwing(track, wrist, side, dt, now) {
   if (prev) {
     const dx = wrist.x - prev.x;
     const dy = wrist.y - prev.y;
-    const speed = Math.hypot(dx, dy) / dt / state.frameSize.w; // widths/sec
+    const speed = Math.hypot(dx, dy) / dt / state.frameSize.w;
     if (speed > 2.4) {
-      if (now - track[cooldown] > 380) {
+      const cooldownPassed = now - track[cooldown] > 380;
+      if (cooldownPassed) {
         track.stats.swings++;
         track[cooldown] = now;
       }
-      if (speed > track.stats.peakSwingSpeed) {
-        track.stats.peakSwingSpeed = speed;
+      if (speed > track.stats.peakSwingSpeed) track.stats.peakSwingSpeed = speed;
+      // top-3 for this player, top-8 globally
+      const playerMin = track.bestShots.length < 3 ? 0 : track.bestShots[track.bestShots.length - 1].speed;
+      const globalMin = state.events.bestShots.length < 8 ? 0 : state.events.bestShots[state.events.bestShots.length - 1].speed;
+      if (cooldownPassed && (speed > playerMin || speed > globalMin)) {
         const snap = grabSnapshot(track.bbox);
-        state.events.bestShots.push({ trackId: track.id, speed, t: now, snapshot: snap });
+        const entry = { trackId: track.id, speed, t: now, snapshot: snap };
+        track.bestShots.push(entry);
+        track.bestShots.sort((a, b) => b.speed - a.speed);
+        if (track.bestShots.length > 3) track.bestShots.length = 3;
+        state.events.bestShots.push(entry);
         state.events.bestShots.sort((a, b) => b.speed - a.speed);
         if (state.events.bestShots.length > 8) state.events.bestShots.length = 8;
       }
@@ -445,7 +712,7 @@ function checkSwing(track, wrist, side, dt, now) {
   track[lastKey] = { x: wrist.x, y: wrist.y };
 }
 
-/* ---------- Missed reaction detection ---------- */
+/* ---------- Missed reactions ---------- */
 function checkMissedReactions(now) {
   const active = state.tracks.filter(t => now - t.lastSeen < 1000);
   if (active.length < 2) return;
@@ -454,12 +721,16 @@ function checkMissedReactions(now) {
     return recent.length ? recent.reduce((s, h) => s + h.move, 0) / recent.length : 0;
   });
   const rallyAvg = recentAvg.reduce((s, v) => s + v, 0) / recentAvg.length;
-  if (rallyAvg < 0.0035) return; // not enough motion overall — likely a pause
+  if (rallyAvg < 0.0035) return;
   active.forEach((t, i) => {
     if (recentAvg[i] < rallyAvg * 0.22) {
       const last = state.events.misses[state.events.misses.length - 1];
       if (!last || now - last.t > 1800 || last.trackId !== t.id) {
-        state.events.misses.push({ trackId: t.id, t: now });
+        let snap = '';
+        if (t.misses.length < 5) snap = grabSnapshot(t.bbox);
+        const entry = { trackId: t.id, t: now, snapshot: snap };
+        state.events.misses.push(entry);
+        t.misses.push(entry);
         t.stats.missedReactions++;
       }
     }
@@ -483,7 +754,6 @@ function drawOverlay(poses) {
   for (const pose of poses) {
     const bbox = bboxFromKeypoints(pose.keypoints);
     if (!bbox) continue;
-
     let track = state.tracks.find(t => t.trackerId === pose.id);
     if (!track) {
       let bestI = 0.05, best = null;
@@ -553,12 +823,15 @@ function renderPlayerChips() {
   }
 }
 
-/* ---------- End match + results ---------- */
-function endMatch() {
+/* ---------- End match ---------- */
+async function endMatch() {
   state.running = false;
+  state.endTime = performance.now();
   cancelAnimationFrame(state.rafId);
-  const stream = state.video && state.video.srcObject;
-  if (stream) stream.getTracks().forEach(t => t.stop());
+  showLoader('Finalizing match recording…');
+  await stopRecording();
+  if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+  hideLoader();
   $('gameScreen').classList.add('hidden');
   showResults();
 }
@@ -568,23 +841,34 @@ function fmtTime(ms) {
   return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 }
 
+/* ---------- Per-player scoring ---------- */
+function scoreTracks() {
+  return state.tracks.map(t => {
+    const s = t.stats;
+    const score =
+      s.totalMovement * 80
+    + s.swings * 7
+    + s.peakSwingSpeed * 12
+    - s.missedReactions * 14;
+    return { t, score };
+  }).sort((a, b) => b.score - a.score);
+}
+
+/* ---------- Results screen ---------- */
 function showResults() {
   $('resultsScreen').classList.remove('hidden');
-  const durMs = performance.now() - state.startTime;
+  const durMs = state.endTime - state.startTime;
   const min = Math.floor(durMs/60000), sec = Math.floor((durMs%60000)/1000);
   $('recapSub').textContent =
     `${min}m ${sec}s match · ${state.tracks.length} player${state.tracks.length===1?'':'s'} tracked`;
 
-  // Per-player score
-  const scored = state.tracks.map(t => {
-    const s = t.stats;
-    const score =
-      s.totalMovement * 80     // coverage
-    + s.swings * 7             // activity
-    + s.peakSwingSpeed * 12    // power
-    - s.missedReactions * 14;  // attentiveness
-    return { t, score };
-  }).sort((a, b) => b.score - a.score);
+  // Disable video button if no recording
+  if (!state.videoBlob || state.videoBlob.size === 0) {
+    $('dlVideo').disabled = true;
+    $('dlVideo').title = 'Video recording not supported on this browser';
+  }
+
+  const scored = scoreTracks();
 
   // MVP
   if (scored.length) {
@@ -632,13 +916,19 @@ function showResults() {
     card.className = 'pcard';
     card.innerHTML = `
       <img src="${t.snapshot}" alt="Player ${t.id}">
-      <div class="pn" style="color:${t.color}">Player ${t.id}</div>
+      <div class="pn" style="color:${t.color}">Player ${t.id}${scored[0].t.id===t.id ? ' · MVP' : ''}</div>
       <div class="stat"><span>Movement</span><b>${t.stats.totalMovement.toFixed(1)}</b></div>
       <div class="stat"><span>Swings</span><b>${t.stats.swings}</b></div>
       <div class="stat"><span>Peak shot</span><b>${t.stats.peakSwingSpeed.toFixed(1)}</b></div>
       <div class="stat"><span>Misses</span><b>${t.stats.missedReactions}</b></div>
-      <div class="stat" style="margin-top:6px; padding-top:6px; border-top:1px solid var(--line);"><span>Score</span><b>${Math.round(score)}</b></div>
-    `;
+      <div class="stat" style="margin-top:6px; padding-top:6px; border-top:1px solid var(--line);">
+        <span>Score</span><b>${Math.round(score)}</b>
+      </div>
+      <button class="dl-mini" data-pid="${t.id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Download report
+      </button>`;
+    card.querySelector('.dl-mini').addEventListener('click', () => downloadPlayerReport(t.id));
     grid.appendChild(card);
   }
 
@@ -693,6 +983,228 @@ function improvementNotes(t) {
                                   notes.push('Strong, frequent swings — focus next on placement and consistency.');
   if (!notes.length)              notes.push('Balanced game — keep refining shot selection and court positioning.');
   return notes;
+}
+
+/* ============================================================
+   DOWNLOADS
+   ============================================================ */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+}
+
+function downloadMatchVideo() {
+  if (!state.videoBlob || state.videoBlob.size === 0) {
+    toast('No match video available');
+    return;
+  }
+  const ext = state.videoMime && state.videoMime.includes('mp4') ? 'mp4' : 'webm';
+  const stamp = new Date().toISOString().slice(0,10);
+  downloadBlob(state.videoBlob, `picklytics-match-${stamp}.${ext}`);
+  toast('Match video downloading…');
+}
+
+function downloadGeneralReport() {
+  const html = buildGeneralReportHtml();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const stamp = new Date().toISOString().slice(0,10);
+  downloadBlob(blob, `picklytics-match-report-${stamp}.html`);
+  toast('Match report downloading…');
+}
+
+function downloadPlayerReport(playerId) {
+  const t = state.tracks.find(x => x.id === playerId);
+  if (!t) return;
+  const html = buildPlayerReportHtml(t);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const stamp = new Date().toISOString().slice(0,10);
+  downloadBlob(blob, `picklytics-player-${playerId}-${stamp}.html`);
+  toast(`Player ${playerId} report downloading…`);
+}
+
+/* ---------- Report HTML builders ---------- */
+function reportStyles() {
+  return `
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;
+      background:#0b1110;color:#e8f1ee;padding:40px 28px;line-height:1.5;-webkit-font-smoothing:antialiased}
+    .wrap{max-width:760px;margin:0 auto}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:24px;color:#93a39d;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600}
+    .brand .ball{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f3ff7c,#c9f028 70%,#8aac1f)}
+    h1{font-size:38px;letter-spacing:-0.025em;font-weight:800;margin-bottom:6px}
+    .sub{color:#93a39d;font-size:14px;margin-bottom:32px}
+    .section-h{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#93a39d;font-weight:600;margin:32px 0 12px 0}
+    .card{background:#131b1a;border:1px solid #25342f;border-radius:16px;padding:18px;margin-bottom:10px}
+    .hero-card{background:linear-gradient(135deg,rgba(216,255,58,0.18),rgba(109,255,180,0.06));
+      border:1px solid rgba(216,255,58,0.4);border-radius:18px;padding:20px;display:flex;gap:18px;align-items:center}
+    .hero-card img{width:110px;height:110px;object-fit:cover;border-radius:14px;border:2px solid #d8ff3a}
+    .hero-card h2{font-size:26px;letter-spacing:-0.015em}
+    .hero-card p{color:#93a39d;font-size:13px;margin-top:4px}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .stat-tile{background:#131b1a;border:1px solid #25342f;border-radius:14px;padding:14px}
+    .stat-tile .v{font-size:24px;font-weight:800;letter-spacing:-0.015em}
+    .stat-tile .l{color:#93a39d;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;font-weight:600}
+    .strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+    .strip .shot{flex-shrink:0;width:140px;background:#131b1a;border:1px solid #25342f;border-radius:12px;overflow:hidden}
+    .strip .shot img{width:100%;height:100px;object-fit:cover;display:block}
+    .strip .shot .meta{padding:8px 10px;font-size:11px}
+    .strip .shot .meta b{display:block;font-size:13px;color:#fff;margin-bottom:2px}
+    .strip .shot .meta span{color:#93a39d}
+    .miss{padding:10px 12px;background:#131b1a;border:1px solid #25342f;border-radius:12px;margin-bottom:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .miss .t{color:#93a39d;font-variant-numeric:tabular-nums;font-size:12px}
+    .miss-img{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-top:8px}
+    .miss-img img{flex-shrink:0;width:120px;height:90px;object-fit:cover;border-radius:10px;border:1px solid #25342f}
+    .notes{padding:18px;background:#131b1a;border:1px solid #25342f;border-radius:16px}
+    .notes ul{list-style:none;padding:0}
+    .notes li{padding:6px 0;color:#cdd9d5;display:flex;gap:10px;font-size:14px}
+    .notes li::before{content:"→";color:#d8ff3a;font-weight:800}
+    .ts{font-variant-numeric:tabular-nums;color:#93a39d;font-size:12px}
+    .footer{margin-top:40px;padding-top:20px;border-top:1px solid #25342f;color:#93a39d;font-size:12px;text-align:center}
+    @media print{body{background:#fff;color:#000}
+      .card,.notes,.stat-tile,.strip .shot,.miss{background:#f6f8f7;border-color:#dde3e1}
+      .hero-card{background:#f3fae0;border-color:#cde066}
+      .brand,.sub,.notes li,.miss .t,.stat-tile .l,.strip .shot .meta span{color:#5a6864}
+      h1,h2,.stat-tile .v,.strip .shot .meta b{color:#0b1110}}
+  </style>`;
+}
+
+function escapeHtml(s) { return String(s).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+function reportHeader() {
+  const dt = new Date().toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  return `<div class="brand"><span class="ball"></span> Picklytics · Match Report · ${escapeHtml(dt)}</div>`;
+}
+
+function buildGeneralReportHtml() {
+  const durMs = state.endTime - state.startTime;
+  const min = Math.floor(durMs/60000), sec = Math.floor((durMs%60000)/1000);
+  const scored = scoreTracks();
+  const mvp = scored[0]?.t;
+  const best = state.events.bestShots[0];
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Picklytics Match Report</title>${reportStyles()}</head>
+  <body><div class="wrap">
+    ${reportHeader()}
+    <h1>Match Recap</h1>
+    <div class="sub">${min}m ${sec}s · ${state.tracks.length} player${state.tracks.length===1?'':'s'} tracked</div>
+
+    ${mvp ? `
+    <div class="section-h">Most Valuable Player</div>
+    <div class="hero-card">
+      ${mvp.snapshot ? `<img src="${mvp.snapshot}" alt="MVP">` : ''}
+      <div>
+        <h2 style="color:${mvp.color}">Player ${mvp.id}</h2>
+        <p>${escapeHtml(describeMvp(mvp, scored))}</p>
+      </div>
+    </div>` : ''}
+
+    ${best ? `
+    <div class="section-h">Best Shot of the Match</div>
+    <div class="hero-card">
+      ${best.snapshot ? `<img src="${best.snapshot}" alt="Best shot">` : ''}
+      <div>
+        <h2 style="color:${(state.tracks.find(x=>x.id===best.trackId)||{}).color||'#d8ff3a'}">Player ${best.trackId}</h2>
+        <p>Peak wrist speed ${best.speed.toFixed(2)} u/s · at ${fmtTime(best.t - state.startTime)}</p>
+      </div>
+    </div>` : ''}
+
+    <div class="section-h">Players</div>
+    <div class="grid">
+      ${scored.map(({t, score}) => `
+      <div class="stat-tile">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+          ${t.snapshot ? `<img src="${t.snapshot}" style="width:42px;height:42px;border-radius:9px;object-fit:cover">` : ''}
+          <div>
+            <div class="v" style="font-size:18px;color:${t.color}">Player ${t.id}</div>
+            <div class="l">Score ${Math.round(score)}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#cdd9d5;line-height:1.7">
+          Movement <b style="color:#fff">${t.stats.totalMovement.toFixed(1)}</b> ·
+          Swings <b style="color:#fff">${t.stats.swings}</b><br>
+          Peak shot <b style="color:#fff">${t.stats.peakSwingSpeed.toFixed(1)}</b> ·
+          Misses <b style="color:#fff">${t.stats.missedReactions}</b>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    ${state.events.misses.length ? `
+    <div class="section-h">Top Misses</div>
+    ${state.events.misses.slice(0, 8).map(m => {
+      const t = state.tracks.find(x=>x.id===m.trackId);
+      return `<div class="miss"><span style="color:${t?t.color:'#fff'}"><b>Player ${m.trackId}</b> · slow reaction during rally</span><span class="t">${fmtTime(m.t - state.startTime)}</span></div>`;
+    }).join('')}` : ''}
+
+    <div class="section-h">Areas of Improvement</div>
+    ${scored.map(({t}) => `
+    <div class="notes" style="margin-bottom:10px">
+      <div style="color:${t.color};font-weight:700;margin-bottom:8px">Player ${t.id}</div>
+      <ul>${improvementNotes(t).map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>
+    </div>`).join('')}
+
+    <div class="footer">Generated by Picklytics. Open this file in any browser. Use ⌘P (or Ctrl+P) to save as PDF.</div>
+  </div></body></html>`;
+}
+
+function buildPlayerReportHtml(t) {
+  const scored = scoreTracks();
+  const rank = scored.findIndex(x => x.t.id === t.id) + 1;
+  const score = scored.find(x => x.t.id === t.id).score;
+  const isMvp = rank === 1;
+  const durMs = state.endTime - state.startTime;
+  const min = Math.floor(durMs/60000), sec = Math.floor((durMs%60000)/1000);
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Picklytics — Player ${t.id} Report</title>${reportStyles()}</head>
+  <body><div class="wrap">
+    ${reportHeader()}
+    <h1>Player ${t.id}<span style="color:${t.color}"> · ${isMvp ? 'MVP' : `#${rank}`}</span></h1>
+    <div class="sub">${min}m ${sec}s match · ranked ${rank} of ${state.tracks.length} · score ${Math.round(score)}</div>
+
+    <div class="hero-card">
+      ${t.snapshot ? `<img src="${t.snapshot}" alt="Player ${t.id}">` : ''}
+      <div>
+        <h2 style="color:${t.color}">${isMvp ? 'Most Valuable Player' : `Ranked #${rank}`}</h2>
+        <p>${escapeHtml(describeMvp(t, scored))}</p>
+      </div>
+    </div>
+
+    <div class="section-h">Match Stats</div>
+    <div class="grid">
+      <div class="stat-tile"><div class="v">${t.stats.totalMovement.toFixed(1)}</div><div class="l">Court coverage</div></div>
+      <div class="stat-tile"><div class="v">${t.stats.swings}</div><div class="l">Swings</div></div>
+      <div class="stat-tile"><div class="v">${t.stats.peakSwingSpeed.toFixed(1)}</div><div class="l">Peak shot speed</div></div>
+      <div class="stat-tile"><div class="v">${t.stats.missedReactions}</div><div class="l">Missed reactions</div></div>
+    </div>
+
+    ${t.bestShots.length ? `
+    <div class="section-h">Your Best Shots</div>
+    <div class="strip">
+      ${t.bestShots.map((s, i) => `
+        <div class="shot">
+          ${s.snapshot ? `<img src="${s.snapshot}" alt="Best shot ${i+1}">` : ''}
+          <div class="meta"><b>#${i+1} · ${s.speed.toFixed(2)} u/s</b><span>at ${fmtTime(s.t - state.startTime)}</span></div>
+        </div>`).join('')}
+    </div>` : ''}
+
+    ${t.misses.length ? `
+    <div class="section-h">Moments to Review</div>
+    ${t.misses.map(m => `<div class="miss"><span>Late reaction during rally</span><span class="t">${fmtTime(m.t - state.startTime)}</span></div>`).join('')}
+    ${t.misses.some(m => m.snapshot) ? `
+    <div class="miss-img">
+      ${t.misses.filter(m => m.snapshot).map(m => `<img src="${m.snapshot}" alt="Miss at ${fmtTime(m.t - state.startTime)}">`).join('')}
+    </div>` : ''}` : ''}
+
+    <div class="section-h">How to Improve</div>
+    <div class="notes">
+      <ul>${improvementNotes(t).map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>
+    </div>
+
+    <div class="footer">Tip: open the full match video and jump to the timestamps above. Use ⌘P / Ctrl+P to save this report as a PDF.</div>
+  </div></body></html>`;
 }
 </script>
 </body>
